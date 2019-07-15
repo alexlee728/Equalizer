@@ -35,8 +35,8 @@ func listLoners(imageSets: [ImageSet]) -> [String]{
         
         var hasHost = false
         for srcPath: Path in sources {
-            let content = try! srcPath.read(NSUTF8StringEncoding)
-            if content.containsString("\"\(imageSetName)\""){
+            let content = try! srcPath.read(String.Encoding.utf8)
+            if content.contains("\"\(imageSetName)\""){
                 hasHost = true
                 break
             }

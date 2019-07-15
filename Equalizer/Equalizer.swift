@@ -22,7 +22,7 @@ struct ImageSet {
     
     // Check if imageset name matching file name
     func nameMatching() -> Bool{
-        let images = content["images"] as! [[String:String]]
+        let images = content["images"] as! [[String:AnyObject]]
         for image in images{
             guard let fileName = image["filename"] else {
                 continue
@@ -46,13 +46,13 @@ func findTargetImageSets() -> [ImageSet] {
             continue
         }
         if child.path.hasSuffix(".imageset") {
-            let imageSet = ImageSet(path: child.path, name: child.lastComponentWithoutExtension, content: readContent(Path("\(child.path)/Contents.json")))
+            let imageSet = ImageSet(path: child.path, name: child.lastComponentWithoutExtension, content: readContent(path: Path("\(child.path)/Contents.json")))
             if !imageSet.nameMatching() {
                 tagetImageSets.append(imageSet)
             }
         }else {
             child.chdir{
-                tagetImageSets.appendContentsOf(findTargetImageSets())
+                tagetImageSets.append(contentsOf:findTargetImageSets())
             }
         }
     }
@@ -70,11 +70,11 @@ func findAllImageSets() -> [ImageSet] {
             continue
         }
         if child.path.hasSuffix(".imageset") {
-            let imageSet = ImageSet(path: child.path, name: child.lastComponentWithoutExtension, content: readContent(Path("\(child.path)/Contents.json")))
+            let imageSet = ImageSet(path: child.path, name: child.lastComponentWithoutExtension, content: readContent(path: Path("\(child.path)/Contents.json")))
             imageSets.append(imageSet)
         }else {
             child.chdir{
-                imageSets.appendContentsOf(findAllImageSets())
+                imageSets.append(contentsOf:findAllImageSets())
             }
         }
     }
@@ -84,49 +84,69 @@ func findAllImageSets() -> [ImageSet] {
 
 func readContent(path: Path) -> [String:AnyObject] {
     
-    let content = try! NSJSONSerialization.JSONObjectWithData(try! path.read(), options: .AllowFragments)
+    let content = try! JSONSerialization.jsonObject(with: try! path.read(), options: .allowFragments)
     
     return content as! [String : AnyObject]
 }
 
-func correctName(imageSet imageSet: ImageSet) {
+func correctName(imageSet: ImageSet) {
     var content = imageSet.content
     let contentPath = Path("\(imageSet.path)/Contents.json")
     let imageSetName = imageSet.name
     
-    var images = content["images"] as! [[String:String]]
-    for (idx, image) in images.enumerate(){
+    var images = content["images"] as! [[String:AnyObject]]
+    for (idx, image) in images.enumerated(){
         guard let fileName = image["filename"] else {
             continue
         }
-        
-        let scale = image["scale"]
+
+        let scale = image["scale"] as! String
         var separator = "@"
         if scale == "1x" {
             separator = "."
         }
-        let components = fileName.componentsSeparatedByString(separator)
-        if components.count != 2 {
+
+        var components = fileName.components(separatedBy: separator)
+        if components.count == 1{
+            separator = "."
+            components = fileName.components(separatedBy: separator)
+            if (components.count != 2) {
+                continue
+            }
+
+            if (scale == "1x" || scale == "2x" || scale == "3x") {
+                let oldComponents1 = components[1]
+                components[1] = "\(scale)\(separator)\(oldComponents1)"
+                separator = "@"
+            }
+        }
+        else if components.count == 2{
+        }
+        else {
             continue
         }
+
         let correctFileName = "\(imageSetName)\(separator)\(components[1])"
         
         // change image name
         let srcFilePath = Path("\(imageSet.path)/\(fileName)")
         let destFilePath = Path("\(imageSet.path)/\(correctFileName)")
-        try! srcFilePath.move(destFilePath)
-        
+
+        if (FileManager.default.fileExists(atPath: srcFilePath.path) && !FileManager.default.fileExists(atPath: destFilePath.path)) {
+            try! srcFilePath.move(destFilePath)
+        }
+
         var mutImage = image
-        mutImage["filename"] = correctFileName
-        
+        mutImage["filename"] = correctFileName as AnyObject
+
         images[idx] = mutImage
     }
     
-    content["images"] = images
+    content["images"] = images as AnyObject
     
     // write back content.json
     try! contentPath.delete()
-    let data = try! NSJSONSerialization.dataWithJSONObject(content, options: .PrettyPrinted)
+    let data = try! JSONSerialization.data(withJSONObject: content, options: .prettyPrinted)
     try! contentPath.write(data)
 }
 
