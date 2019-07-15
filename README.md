@@ -18,18 +18,6 @@ As you might already guessed, this tool will modify content in `Contents.json` f
 5. Copy this binary to any directory which has `.xcassets` sub directory in it
 6. Execute without any parameters
 
-
-
-**Or**
-
-1. Download this repo
-
-2. Open in Xcode
-
-3. Set the correct build destination  (in Build Settings— Build Locations— Build Product Path) to any directory which has `.xcassets` sub directory in it
-
-4. Run
-
    ​
 
 ### Embed code
